@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ministry Asset Registry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16233D;
+    --paper:#EEF0EC;
+    --panel:#FFFFFF;
+    --line:#D8DBD3;
+    --brass:#A8763E;
+    --brass-dark:#8A5F30;
+    --available:#2F7D5B;
+    --loaned:#3D6FB4;
+    --occupied:#6B4FA0;
+    --maint:#C98A2C;
+    --disposed:#8A8F98;
+    --overdue:#B23A3A;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;
+  }
+  h1,h2,h3,.display{
+    font-family:'Space Grotesk',sans-serif;
+    letter-spacing:-0.01em;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* -------- Header: repeating tag-strip signature -------- */
+  .tagstrip{
+    display:flex;
+    overflow:hidden;
+    height:14px;
+    background:var(--ink);
+  }
+  .tagstrip span{
+    flex:0 0 auto;
+    width:34px;
+    height:14px;
+    margin:0 3px;
+    margin-top:3px;
+    border:1px dashed rgba(168,118,62,0.65);
+    border-radius:2px;
+  }
+  header{
+    background:var(--ink);
+    color:#F2EFE6;
+    padding:22px 28px 26px;
+  }
+  header .top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  header h1{
+    margin:0;
+    font-size:26px;
+    font-weight:700;
+    color:#fff;
+  }
+  header .subtitle{
+    margin:4px 0 0;
+    color:#B9C2D6;
+    font-size:13px;
+  }
+  .conn{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+  }
+  .conn input{
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.25);
+    color:#fff;
+    padding:7px 10px;
+    border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    width:230px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--disposed);flex:0 0 auto;}
+  .dot.ok{background:var(--available);}
+  .dot.bad{background:var(--overdue);}
+
+  /* -------- Nav tabs -------- */
+  nav{
+    display:flex;
+    gap:2px;
+    padding:0 24px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  nav button{
+    border:none;
+    background:none;
+    padding:14px 16px;
+    font:600 13px 'IBM Plex Sans',sans-serif;
+    color:#6B7280;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    white-space:nowrap;
+  }
+  nav button.active{
+    color:var(--ink);
+    border-bottom-color:var(--brass);
+  }
+
+  main{padding:22px 24px 60px;max-width:1200px;margin:0 auto;}
+
+  /* -------- Stat strip -------- */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:12px;
+    margin-bottom:20px;
+  }
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .stat b{display:block;font-size:22px;font-family:'Space Grotesk',sans-serif;}
+  .stat span{font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.04em;}
+
+  /* -------- Toolbar -------- */
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom:16px;
+  }
+  .toolbar input, .toolbar select{
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:13px;
+    background:#fff;
+  }
+  .btn{
+    padding:8px 14px;
+    border-radius:6px;
+    border:1px solid var(--brass);
+    background:var(--brass);
+    color:#fff;
+    font:600 13px 'IBM Plex Sans',sans-serif;
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--brass-dark);}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn.ghost:hover{border-color:var(--brass);}
+  .btn.small{padding:5px 10px;font-size:12px;}
+  .btn.danger{background:var(--overdue);border-color:var(--overdue);}
+
+  .grow{flex:1;}
+
+  /* -------- Asset "tag" cards -------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:14px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px dashed var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    position:relative;
+  }
+  .card .tagline{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:6px;
+  }
+  .card .tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--brass-dark);
+    background:#F6EEE2;
+    padding:2px 7px;
+    border-radius:4px;
+  }
+  .card h3{margin:2px 0 2px;font-size:16px;}
+  .card .meta{font-size:12px;color:#6B7280;margin-bottom:8px;}
+  .status{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:11px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    padding:3px 8px;
+    border-radius:20px;
+  }
+  .status .dot{width:7px;height:7px;}
+  .status.AVAILABLE{background:#E5F2EC;color:var(--available);}
+  .status.AVAILABLE .dot{background:var(--available);}
+  .status.LOANED_OUT{background:#E7EEF9;color:var(--loaned);}
+  .status.LOANED_OUT .dot{background:var(--loaned);}
+  .status.OCCUPIED{background:#EFE8F6;color:var(--occupied);}
+  .status.OCCUPIED .dot{background:var(--occupied);}
+  .status.UNDER_MAINTENANCE{background:#FBF0DE;color:var(--maint);}
+  .status.UNDER_MAINTENANCE .dot{background:var(--maint);}
+  .status.DISPOSED{background:#ECEDEE;color:var(--disposed);}
+  .status.DISPOSED .dot{background:var(--disposed);}
+
+  .card .sched, .card .wo{
+    font-size:11.5px;
+    margin-top:6px;
+    padding-top:6px;
+    border-top:1px solid var(--line);
+    color:#4B5563;
+  }
+  .card .sched.overdue{color:var(--overdue);font-weight:600;}
+  .card .actions{
+    display:flex;
+    gap:6px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+
+  .empty{
+    text-align:center;
+    color:#6B7280;
+    padding:40px 0;
+    border:1px dashed var(--line);
+    border-radius:var(--radius);
+    background:#fff;
+  }
+
+  /* -------- Modal -------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(22,35,61,0.45);
+    display:none;align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:#fff;border-radius:var(--radius);padding:22px;width:100%;max-width:420px;
+    max-height:86vh;overflow-y:auto;
+  }
+  .modal h2{margin:0 0 14px;font-size:18px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:#6B7280;margin-bottom:4px;}
+  .field input, .field select{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;
+  }
+  .modal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:100;
+  }
+  .toast.show{opacity:1;}
+  .toast.err{background:var(--overdue);}
+
+  @media (max-width:720px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div class="tagstrip" id="tagstrip"></div>
+<header>
+  <div class="top">
+    <div>
+      <h1>Ministry Asset Registry</h1>
+      <p class="subtitle">Library &amp; Resource Management — books, e-resources, labs and meeting rooms across every campus</p>
+    </div>
+    <div class="conn">
+      <span class="dot" id="connDot"></span>
+      <span id="connLabel">checking…</span>
+      <input id="baseUrl" class="mono" value="http://localhost:8080/library">
+      <button class="btn ghost small" onclick="reconnect()">Reconnect</button>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="global">Global view</button>
+  <button class="tab" data-tab="campus">Campus view</button>
+  <button class="tab" data-tab="institution">Institution view</button>
+  <button class="tab" data-tab="overdue">Overdue dashboard</button>
+  <button class="tab" data-tab="institutions">Institutions</button>
+</nav>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar" id="toolbar"></div>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+let BASE = document.getElementById('baseUrl').value;
+let currentTab = 'global';
+let allAssets = [];
+
+const tagstrip = document.getElementById('tagstrip');
+for (let i=0;i<40;i++){ const s=document.createElement('span'); tagstrip.appendChild(s); }
+
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(()=> t.className='toast', 2200);
+}
+
+async function api(path, opts={}){
+  const res = await fetch(BASE + path, {
+    headers:{'Content-Type':'application/json'},
+    ...opts
+  });
+  let body = null;
+  try { body = await res.json(); } catch(e) {}
+  if (!res.ok){
+    throw new Error((body && body.message) ? body.message : ('Request failed (' + res.status + ')'));
+  }
+  return body;
+}
+
+async function reconnect(){
+  BASE = document.getElementById('baseUrl').value.replace(/\/$/,'');
+  const dot = document.getElementById('connDot');
+  const label = document.getElementById('connLabel');
+  try{
+    await api('/health');
+    dot.className = 'dot ok';
+    label.textContent = 'connected';
+    loadAll();
+  }catch(e){
+    dot.className = 'dot bad';
+    label.textContent = 'offline';
+  }
+}
+
+document.querySelectorAll('nav .tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav .tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    renderToolbar();
+    loadAll();
+  });
+});
+
+function renderToolbar(){
+  const tb = document.getElementById('toolbar');
+  let html = '';
+  if (currentTab === 'campus'){
+    html += `<input id="filterVal" placeholder="Site / campus name" class="grow">
+              <button class="btn" onclick="loadAll()">Filter</button>`;
+  } else if (currentTab === 'institution'){
+    html += `<input id="filterVal" placeholder="Institution name" class="grow">
+              <button class="btn" onclick="loadAll()">Filter</button>`;
+  } else if (currentTab === 'institutions'){
+    html += `<input id="newInstName" placeholder="New institution name" class="grow">
+              <button class="btn" onclick="addInstitution()">Add institution</button>`;
+  } else {
+    html += `<span class="grow"></span>`;
+  }
+  if (currentTab !== 'institutions'){
+    html += `<button class="btn" onclick="openCreateAsset()">+ New asset</button>`;
+  }
+  tb.innerHTML = html;
+}
+
+async function loadAll(){
+  try{
+    if (currentTab === 'institutions'){
+      const names = await api('/institutions');
+      renderInstitutions(names);
+      renderStatsFromAssets(allAssets.length ? allAssets : await api('/assets'));
+      return;
+    }
+    let assets;
+    if (currentTab === 'global'){
+      assets = await api('/assets');
+    } else if (currentTab === 'overdue'){
+      assets = await api('/assets/overdue');
+    } else if (currentTab === 'campus'){
+      const v = (document.getElementById('filterVal')||{}).value || '';
+      assets = v ? await api('/sites/' + encodeURIComponent(v) + '/assets') : [];
+    } else if (currentTab === 'institution'){
+      const v = (document.getElementById('filterVal')||{}).value || '';
+      assets = v ? await api('/institutions/' + encodeURIComponent(v) + '/assets') : [];
+    }
+    allAssets = (currentTab === 'global') ? assets : allAssets;
+    renderGrid(assets || []);
+    renderStatsFromAssets(currentTab === 'global' ? assets : (allAssets.length? allAssets : await api('/assets')));
+  }catch(e){
+    toast(e.message, true);
+  }
+}
+
+function renderStatsFromAssets(assets){
+  const counts = {AVAILABLE:0,LOANED_OUT:0,OCCUPIED:0,UNDER_MAINTENANCE:0,DISPOSED:0};
+  let overdue = 0;
+  const today = new Date().toISOString().slice(0,10);
+  assets.forEach(a=>{
+    counts[a.status] = (counts[a.status]||0) + 1;
+    if ((a.schedules||[]).some(s => !s.completed && s.dueDate < today)) overdue++;
+  });
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><b>${assets.length}</b><span>Total assets</span></div>
+    <div class="stat"><b>${counts.AVAILABLE||0}</b><span>Available</span></div>
+    <div class="stat"><b>${(counts.LOANED_OUT||0)+(counts.OCCUPIED||0)}</b><span>Loaned / occupied</span></div>
+    <div class="stat"><b>${counts.UNDER_MAINTENANCE||0}</b><span>Under maintenance</span></div>
+    <div class="stat"><b style="color:var(--overdue)">${overdue}</b><span>Overdue</span></div>
+  `;
+}
+
+function renderInstitutions(names){
+  const grid = document.getElementById('grid');
+  if (!names.length){ grid.innerHTML = '<div class="empty">No institutions registered yet.</div>'; return; }
+  grid.innerHTML = names.map(n => `
+    <div class="card">
+      <div class="tagline"><span class="tag">INSTITUTION</span></div>
+      <h3>${escapeHtml(n)}</h3>
+      <div class="actions">
+        <button class="btn small danger" onclick="removeInstitution('${escapeAttr(n)}')">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderGrid(assets){
+  const grid = document.getElementById('grid');
+  if (!assets.length){ grid.innerHTML = '<div class="empty">No assets to show here yet.</div>'; return; }
+  const today = new Date().toISOString().slice(0,10);
+  grid.innerHTML = assets.map(a=>{
+    const scheduleLines = (a.schedules||[]).map(s=>{
+      const overdue = !s.completed && s.dueDate < today;
+      return `<div class="sched ${overdue?'overdue':''}">${overdue?'⚠ overdue — ':''}${escapeHtml(s.type)} due ${s.dueDate}${s.completed?' (done)':''}</div>`;
+    }).join('');
+    const woLines = (a.workOrders||[]).map(w=>`<div class="wo">Work order ${w.orderId.slice(0,8)} — ${w.status}: ${escapeHtml(w.description)}</div>`).join('');
+    return `
+    <div class="card">
+      <div class="tagline">
+        <span class="tag">${escapeHtml(a.assetTag)}</span>
+        <span class="status ${a.status}"><span class="dot"></span>${a.status.replace('_',' ')}</span>
+      </div>
+      <h3>${escapeHtml(a.name)}</h3>
+      <div class="meta">${escapeHtml(a.institution)} · ${escapeHtml(a.site)} · acquired ${a.dateAcquired}</div>
+      <div class="meta">${escapeHtml(a.description)}</div>
+      ${scheduleLines}${woLines}
+      <div class="actions">
+        <button class="btn small ghost" onclick="loanAsset('${escapeAttr(a.assetTag)}')">Loan</button>
+        <button class="btn small ghost" onclick="returnAsset('${escapeAttr(a.assetTag)}')">Return</button>
+        <button class="btn small ghost" onclick="openBook('${escapeAttr(a.assetTag)}')">Book</button>
+        <button class="btn small ghost" onclick="openSchedule('${escapeAttr(a.assetTag)}')">Add schedule</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/'/g,'&#39;'); }
+
+// ---------- actions ----------
+
+async function loanAsset(tag){
+  try{ await api('/assets/'+encodeURIComponent(tag)+'/loan', {method:'POST', body:'{}'}); toast('Loaned out ' + tag); loadAll(); }
+  catch(e){ toast(e.message, true); }
+}
+async function returnAsset(tag){
+  try{ await api('/assets/'+encodeURIComponent(tag)+'/return', {method:'POST', body:'{}'}); toast('Returned ' + tag); loadAll(); }
+  catch(e){ toast(e.message, true); }
+}
+async function addInstitution(){
+  const name = document.getElementById('newInstName').value.trim();
+  if (!name) return;
+  try{ await api('/institutions', {method:'POST', body: JSON.stringify({name})}); toast('Institution added'); loadAll(); }
+  catch(e){ toast(e.message, true); }
+}
+async function removeInstitution(name){
+  try{ await api('/institutions/'+encodeURIComponent(name), {method:'DELETE'}); toast('Institution removed'); loadAll(); }
+  catch(e){ toast(e.message, true); }
+}
+
+// ---------- modals ----------
+
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+function openBook(tag){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>Book ${escapeHtml(tag)}</h2>
+    <div class="field"><label>Date</label><input type="date" id="m_dueDate"></div>
+    <div class="field"><label>Description (optional)</label><input id="m_desc" placeholder="e.g. lab session"></div>
+    <div class="row">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitBook('${escapeAttr(tag)}')">Book</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+async function submitBook(tag){
+  const dueDate = document.getElementById('m_dueDate').value;
+  const description = document.getElementById('m_desc').value;
+  if (!dueDate){ toast('Pick a date', true); return; }
+  try{
+    await api('/assets/'+encodeURIComponent(tag)+'/book', {method:'POST', body: JSON.stringify(description? {dueDate,description}:{dueDate})});
+    toast('Booked ' + tag); closeModal(); loadAll();
+  }catch(e){ toast(e.message, true); }
+}
+
+function openSchedule(tag){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>Add schedule — ${escapeHtml(tag)}</h2>
+    <div class="field"><label>Type</label>
+      <select id="m_type"><option>MAINTENANCE</option><option>SERVICING</option><option>BOOKING</option></select>
+    </div>
+    <div class="field"><label>Due date</label><input type="date" id="m_due"></div>
+    <div class="field"><label>Description</label><input id="m_sdesc"></div>
+    <div class="row">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitSchedule('${escapeAttr(tag)}')">Add</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+async function submitSchedule(tag){
+  const type = document.getElementById('m_type').value;
+  const dueDate = document.getElementById('m_due').value;
+  const description = document.getElementById('m_sdesc').value;
+  if (!dueDate || !description){ toast('Fill in due date and description', true); return; }
+  try{
+    await api('/assets/'+encodeURIComponent(tag)+'/schedules', {method:'POST', body: JSON.stringify({type, dueDate, description})});
+    toast('Schedule added'); closeModal(); loadAll();
+  }catch(e){ toast(e.message, true); }
+}
+
+function openCreateAsset(){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>Register a new asset</h2>
+    <div class="field"><label>Name</label><input id="m_name"></div>
+    <div class="field"><label>Description</label><input id="m_ndesc"></div>
+    <div class="field"><label>Institution</label><input id="m_inst"></div>
+    <div class="field"><label>Site / campus</label><input id="m_site"></div>
+    <div class="field"><label>Date acquired</label><input type="date" id="m_acq"></div>
+    <div class="row">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitCreateAsset()">Create</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+async function submitCreateAsset(){
+  const name = document.getElementById('m_name').value;
+  const description = document.getElementById('m_ndesc').value;
+  const institution = document.getElementById('m_inst').value;
+  const site = document.getElementById('m_site').value;
+  const dateAcquired = document.getElementById('m_acq').value;
+  if (!name || !institution || !site || !dateAcquired){ toast('Fill in all required fields', true); return; }
+  try{
+    await api('/assets', {method:'POST', body: JSON.stringify({name, description, institution, site, dateAcquired, status:'AVAILABLE'})});
+    toast('Asset created'); closeModal(); loadAll();
+  }catch(e){ toast(e.message, true); }
+}
+
+document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') closeModal(); });
+
+renderToolbar();
+reconnect();
+</script>
+</body>
+</html>
