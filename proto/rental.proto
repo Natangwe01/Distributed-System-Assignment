@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package rental;
+
+// Ministry of Tourism - Rental Accommodation System
+// Roles: Host (lists properties) and Guest (browses/books properties).
+service RentalService {
+
+    // Simple RPC: a Host registers a new listing. Server returns a
+    // generated unique property_id.
+    rpc add_property (PropertyRequest) returns (PropertyIdResponse);
+
+    // Client-side streaming: multiple Host/Guest profiles are streamed to
+    // the server; a single confirmation is returned once the stream ends.
+    rpc create_users (stream UserProfile) returns (UserRegistrationSummary);
+
+    // Simple RPC: a Host updates price and/or status on an existing
+    // listing, keyed by property_id.
+    rpc update_property (UpdatePropertyRequest) returns (PropertyResponse);
+
+    // Simple RPC: a Host deletes a listing. Server responds with the new
+    // full list of available properties in that Host's region.
+    rpc remove_property (RemovePropertyRequest) returns (PropertyListResponse);
+
+    // Server-side streaming: a Guest asks for available properties and the
+    // server streams them back one at a time, optionally filtered by
+    // location and/or maximum price.
+    rpc list_available_properties (ListPropertiesRequest) returns (stream PropertyResponse);
+
+    // Simple RPC: a Guest looks up one property by id.
+    rpc search_property (SearchPropertyRequest) returns (SearchPropertyResponse);
+
+    // Simple RPC: a Guest selects a property and proposed dates; server
+    // validates and places a temporary hold in a "booking cart".
+    rpc book_property (BookPropertyRequest) returns (BookingCartResponse);
+
+    // Simple RPC: finalises a temporary booking cart into a confirmed
+    // booking, calculating the total cost.
+    rpc confirm_booking (ConfirmBookingRequest) returns (BookingConfirmationResponse);
+}
+
+// ---------------- Messages ----------------
+
+message PropertyRequest {
+    string host_id = 1;
+    string name = 2;
+    string location = 3;
+    string property_type = 4;
+    double price_per_night = 5;
+    string status = 6; // e.g. AVAILABLE, NOT_AVAILABLE
+}
+
+message PropertyIdResponse {
+    bool success = 1;
+    string property_id = 2;
+    string message = 3;
+}
+
+message UserProfile {
+    string user_id = 1;
+    string name = 2;
+    string role = 3;   // HOST or GUEST
+    string region = 4;
+    string contact = 5;
+}
+
+message UserRegistrationSummary {
+    int32 total_registered = 1;
+    string message = 2;
+}
+
+message UpdatePropertyRequest {
+    string property_id = 1;
+    string host_id = 2;
+    optional double price_per_night = 3;
+    optional string status = 4;
+}
+
+message PropertyResponse {
+    bool found = 1;
+    string property_id = 2;
+    string host_id = 3;
+    string name = 4;
+    string location = 5;
+    string property_type = 6;
+    double price_per_night = 7;
+    string status = 8;
+}
+
+message RemovePropertyRequest {
+    string property_id = 1;
+    string host_id = 2;
+}
+
+message PropertyListResponse {
+    repeated PropertyResponse properties = 1;
+}
+
+message ListPropertiesRequest {
+    string location = 1;    // optional filter, empty string = no filter
+    double max_price = 2;   // optional filter, 0 = no filter
+}
+
+message SearchPropertyRequest {
+    string property_id = 1;
+}
+
+message SearchPropertyResponse {
+    bool found = 1;
+    string status_message = 2;
+    PropertyResponse property = 3;
+}
+
+message BookPropertyRequest {
+    string guest_id = 1;
+    string property_id = 2;
+    string check_in_date = 3;  // "YYYY-MM-DD"
+    string check_out_date = 4; // "YYYY-MM-DD"
+}
+
+message BookingCartResponse {
+    bool success = 1;
+    string cart_id = 2;
+    string message = 3;
+}
+
+message ConfirmBookingRequest {
+    string cart_id = 1;
+}
+
+message BookingConfirmationResponse {
+    bool confirmed = 1;
+    string booking_id = 2;
+    double total_cost = 3;
+    int32 nights = 4;
+    string message = 5;
+}
